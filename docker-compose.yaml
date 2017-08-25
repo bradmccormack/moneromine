@@ -1,0 +1,14 @@
+version: "3"
+
+services:
+  cpuminer:
+    image:
+      servethehome/monero_dwarfpool:zen
+    environment:
+      - email=${MONERO_EMAIL}
+      - username=${MONERO_WALLET_ID}
+      - threads=${CPU_COUNT}
+  gpuminer: 
+    build:
+      context: .
+      dockerfile: dockerfile-nvidia

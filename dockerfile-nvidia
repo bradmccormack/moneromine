@@ -1,0 +1,38 @@
+# A basic container to mine Monero with Nvidia GPUs and ccminer
+FROM nvidia/cuda:devel
+
+MAINTAINER bradmccormack100@gmail.com
+
+RUN apt-get update \
+	&& apt-get -y dist-upgrade \
+	&& apt-get install -y ca-certificates 
+
+RUN apt-get install --no-install-recommends -y \
+	libssl-dev \
+	libcurl4-openssl-dev \
+	curl \
+	libpthread-stubs0-dev \
+	git \
+	build-essential \
+	automake \
+	cuda-drivers
+
+RUN git clone https://github.com/tpruvot/ccminer.git --progress \
+	&& cd ccminer \
+	&& git checkout linux \
+	&& ./build.sh
+
+# TODO - Move all this into the layers above once I have the miner working (It's pointless in a separate layer)
+RUN apt-get clean \
+	&& apt-get remove -y \
+	libssl-dev \
+	libcurl4-openssl-dev \
+	git \
+	build-essential \
+	automake \
+	&& rm -rf /var/lib/apt/lists/*
+
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+WORKDIR /ccminer
+CMD ["./ccminer", "-q", "-o", "stratum+tcp://xmr-usa.dwarfpool.com:8050", "-u", "${MONERO_WALLET_ID}", "-p", "${MONERO_EMAIL}"]
