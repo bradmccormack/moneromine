@@ -7,8 +7,15 @@ services:
     environment:
       - email=${MONERO_EMAIL}
       - username=${MONERO_WALLET_ID}
-      - threads=${CPU_COUNT}
+      - threads=${CPU_LOGICAL_CORE_COUNT}
   gpuminer: 
     build:
       context: .
       dockerfile: dockerfile-nvidia
+    environment:
+      - MONERO_STRATUM=stratum+tcp://xmr-usa.dwarfpool.com:8050
+      - MONERO_USER=${MONERO_WALLET_ID}
+      - MONERO_PASS=${MONERO_EMAIL}
+    image: bradmccormack/monero:nvidia
+
+

@@ -3,11 +3,10 @@ FROM nvidia/cuda:devel
 
 MAINTAINER bradmccormack100@gmail.com
 
+# Install all pre-req software
 RUN apt-get update \
-	&& apt-get -y dist-upgrade \
-	&& apt-get install -y ca-certificates 
-
-RUN apt-get install --no-install-recommends -y \
+	&& apt-get install -y --no-install-recommends \
+	ca-certificates \
 	libssl-dev \
 	libcurl4-openssl-dev \
 	curl \
@@ -15,24 +14,33 @@ RUN apt-get install --no-install-recommends -y \
 	git \
 	build-essential \
 	automake \
-	cuda-drivers
-
-RUN git clone https://github.com/tpruvot/ccminer.git --progress \
+	libgomp1 \
+	&& apt-get upgrade -y --no-install-recommends \
+# Build the miner
+	&& git clone https://github.com/tpruvot/ccminer.git --progress \
 	&& cd ccminer \
 	&& git checkout linux \
-	&& ./build.sh
-
-# TODO - Move all this into the layers above once I have the miner working (It's pointless in a separate layer)
-RUN apt-get clean \
+# The provided build script doesn't install ccminer. Install it so we can remove the source
+	&& echo "make install" >> /ccminer/build.sh \
+	&& ./build.sh \
+# Clean up so the image is smaller
+	&& rm -rf /ccminer \
+	&& apt-get clean \
 	&& apt-get remove -y \
 	libssl-dev \
-	libcurl4-openssl-dev \
+	libpthread-stubs0-dev \
 	git \
 	build-essential \
 	automake \
-	&& rm -rf /var/lib/apt/lists/*
+	&& rm -rf /var/lib/apt/lists/* \
+	&& apt-get autoremove -y
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
-WORKDIR /ccminer
-CMD ["./ccminer", "-q", "-o", "stratum+tcp://xmr-usa.dwarfpool.com:8050", "-u", "${MONERO_WALLET_ID}", "-p", "${MONERO_EMAIL}"]
+# Expose some environment variables to the container in case you want to interact with them
+ENV MONERO_URL stratum+tcp://xmr-usa.dwarfpool.com:8050
+ENV MONERO_USER ${MONERO_WALLET_ID}
+ENV MONERO_PASS ${MONERO_EMAIL}
+
+# Start up the GPU miner with the correct crypto algorithm - TODO expose more options and allow configuration through environment variables
+CMD ccminer --quiet --url=${MONERO_URL} --user=${MONERO_WALLET_ID} --pass=${MONERO_EMAIL} --algo=cryptonight --cpu-priority=0
